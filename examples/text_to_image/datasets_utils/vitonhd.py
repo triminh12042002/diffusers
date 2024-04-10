@@ -17,8 +17,8 @@ import torch.utils.data as data
 import torchvision.transforms as transforms
 from PIL import Image, ImageDraw, ImageOps
 from torchvision.ops import masks_to_boxes
-from src.utils.posemap import get_coco_body25_mapping
-from src.utils.posemap import kpoint_to_heatmap
+from utils.posemap import get_coco_body25_mapping
+from utils.posemap import kpoint_to_heatmap
 
 
 class VitonHDDataset(data.Dataset):
