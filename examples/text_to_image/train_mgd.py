@@ -181,7 +181,9 @@ def main():
     #     args.pretrained_model_name_or_path, subfolder="unet", revision=args.non_ema_revision
     # )
         
-    unet = torch.hub.load(map_location=torch.device('cpu'), dataset=args.dataset, repo_or_dir='aimagelab/multimodal-garment-designer', source='github',
+    # unet = torch.hub.load(map_location=torch.device('cpu'), dataset=args.dataset, repo_or_dir='aimagelab/multimodal-garment-designer', source='github',
+                        #   model='mgd', pretrained=False)
+    unet = torch.hub.load(map_location=device, dataset=args.dataset, repo_or_dir='aimagelab/multimodal-garment-designer', source='github',
                           model='mgd', pretrained=False)
 
     # Freeze vae and text_encoder and set unet to trainable
