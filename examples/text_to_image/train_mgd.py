@@ -19,6 +19,7 @@ import math
 import os
 import random
 import shutil
+import torchvision
 
 from pathlib import Path
 
@@ -42,7 +43,7 @@ from transformers import CLIPTextModel, CLIPTokenizer
 from transformers.utils import ContextManagers
 
 import diffusers
-from diffusers import AutoencoderKL, DDPMScheduler, StableDiffusionPipeline, UNet2DConditionModel
+from diffusers import AutoencoderKL, DDPMScheduler, DDIMScheduler, StableDiffusionPipeline, UNet2DConditionModel
 from diffusers.optimization import get_scheduler
 from diffusers.training_utils import EMAModel, compute_snr
 from diffusers.utils import check_min_version, deprecate, is_wandb_available
@@ -95,6 +96,8 @@ def main():
         )
     logging_dir = os.path.join(args.output_dir, args.logging_dir)
 
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
     accelerator_project_config = ProjectConfiguration(project_dir=args.output_dir, logging_dir=logging_dir)
 
     accelerator = Accelerator(
@@ -139,7 +142,10 @@ def main():
             ).repo_id
 
     # Load scheduler, tokenizer and models.
-    noise_scheduler = DDPMScheduler.from_pretrained(args.pretrained_model_name_or_path, subfolder="scheduler")
+    # noise_scheduler = DDPMScheduler.from_pretrained(args.pretrained_model_name_or_path, subfolder="scheduler")
+    noise_scheduler = DDIMScheduler.from_pretrained(args.pretrained_model_name_or_path, subfolder="scheduler")
+    noise_scheduler.set_timesteps(50, device=device)
+
     tokenizer = CLIPTokenizer.from_pretrained(
         args.pretrained_model_name_or_path, subfolder="tokenizer", revision=args.revision
     )
@@ -562,8 +568,8 @@ def main():
         return text_embeddings
     
      # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_latents
-    def prepare_latents(self, batch_size, num_channels_latents, height, width, dtype, device, generator, latents=None):
-        shape = (batch_size, num_channels_latents, height // self.vae_scale_factor, width // self.vae_scale_factor)
+    def prepare_latents(batch_size, num_channels_latents, height, width, dtype, device, generator, latents=None):
+        shape = (batch_size, num_channels_latents, height // vae_scale_factor, width // vae_scale_factor)
         if isinstance(generator, list) and len(generator) != batch_size:
             raise ValueError(
                 f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
@@ -588,17 +594,17 @@ def main():
             latents = latents.to(device)
 
         # scale the initial noise by the standard deviation required by the scheduler
-        latents = latents * self.scheduler.init_noise_sigma
+        latents = latents * noise_scheduler.init_noise_sigma
         return latents
 
     def prepare_mask_latents(
-            self, mask, masked_image, batch_size, height, width, dtype, device, generator, do_classifier_free_guidance
+            mask, masked_image, batch_size, height, width, dtype, device, generator, do_classifier_free_guidance
     ):
         # resize the mask to latents shape as we concatenate the mask to the latents
         # we do that before converting to dtype to avoid breaking in case we're using cpu_offload
         # and half precision
         mask = torch.nn.functional.interpolate(
-            mask, size=(height // self.vae_scale_factor, width // self.vae_scale_factor)
+            mask, size=(height // vae_scale_factor, width //vae_scale_factor)
         )
         mask = mask.to(device=device, dtype=dtype)
 
@@ -607,12 +613,12 @@ def main():
         # encode the mask image into latents space so we can concatenate it to the latents
         if isinstance(generator, list):
             masked_image_latents = [
-                self.vae.encode(masked_image[i: i + 1]).latent_dist.sample(generator=generator[i])
+                vae.encode(masked_image[i: i + 1]).latent_dist.sample(generator=generator[i])
                 for i in range(batch_size)
             ]
             masked_image_latents = torch.cat(masked_image_latents, dim=0)
         else:
-            masked_image_latents = self.vae.encode(masked_image).latent_dist.sample(generator=generator)
+            masked_image_latents = vae.encode(masked_image).latent_dist.sample(generator=generator)
         masked_image_latents = 0.18215 * masked_image_latents
 
         # duplicate mask and masked_image_latents for each generation per prompt, using mps friendly method
@@ -658,7 +664,7 @@ def main():
     #         ):
     #             return torch.device(module._hf_hook.execution_device)
     #     return device
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
 
     # Train!
     total_batch_size = args.train_batch_size * accelerator.num_processes * args.gradient_accumulation_steps
@@ -716,22 +722,39 @@ def main():
                 # Convert images to latent space
                 # latents = vae.encode(batch["pixel_values"].to(weight_dtype)).latent_dist.sample()
                 latents = vae.encode(batch["image"].to(weight_dtype)).latent_dist.sample()
-                latents = latents * vae.config.scaling_factor
+                # latents = latents * vae.config.scaling_factor
 
-                # model_img = batch["image"]
+                model_img = batch["image"]
                 mask_img = batch["inpaint_mask"]
                 mask_img = mask_img.type(torch.float32)
                 prompt = batch["original_captions"]  # prompts is a list of length N, where N=batch size.
-                # pose_map = batch["pose_map"]
-                # sketch = batch["im_sketch"]
+                pose_map = batch["pose_map"]
+                sketch = batch["im_sketch"]
                 # ext = ".jpg"
 
                 mask_image = mask_img
-
+                image = model_img
                 num_channels_latents = vae.config.latent_channels
                 vae_scale_factor = 2 ** (len(vae.config.block_out_channels) - 1)
+                height=512
+                width=384
                 height = height or unet.config.sample_size * vae_scale_factor
                 width = width or unet.config.sample_size * vae_scale_factor
+
+                batch_size = 1 if isinstance(prompt, str) else len(prompt)
+                # device = _execution_device()
+                # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
+                # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
+                # corresponds to doing no classifier free guidance.
+                guidance_scale = 7.5
+                do_classifier_free_guidance = guidance_scale > 1.0
+                num_images_per_prompt = 1
+                negative_prompt = None
+                text_embeddings = _encode_prompt(prompt, device, num_images_per_prompt, do_classifier_free_guidance, negative_prompt)
+
+                seed = 1234
+                generator = torch.Generator(torch.device("cuda" if torch.cuda.is_available() else "cpu")).manual_seed(seed)
+
 
                 latents = prepare_latents(
                     batch_size * num_images_per_prompt,
@@ -745,7 +768,7 @@ def main():
                 )
 
                 # 4. Preprocess mask, image and posemap
-                mask, masked_image = prepare_mask_and_masked_image(image, mask_image)
+                mask, masked_image = prepare_mask_and_masked_image(image, mask_image, height, width)
 
                 # 7. Prepare mask latent variables
                 mask, masked_image_latents = prepare_mask_latents(
@@ -775,8 +798,10 @@ def main():
                     new_noise = noise + args.input_perturbation * torch.randn_like(noise)
                 bsz = latents.shape[0]
                 # Sample a random timestep for each image
-                timesteps = torch.randint(0, noise_scheduler.config.num_train_timesteps, (bsz,), device=latents.device)
-                timesteps = timesteps.long()
+                # timesteps = torch.randint(0, noise_scheduler.config.num_train_timesteps, (bsz,), device=latents.device)
+                # rand i time step from 0 to 1000
+                timesteps = torch.randint(0, noise_scheduler.config.num_train_timesteps, (1,) , device=latents.device)
+                # timesteps = timesteps.long()
 
                 # Add noise to the latents according to the noise magnitude at each timestep
                 # (this is the forward diffusion process)
@@ -785,20 +810,14 @@ def main():
                 else:
                     noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
 
+                latents = noisy_latents
+
+                # expand the latents if we are doing classifier free guidance
+                latent_model_input = torch.cat([latents] * 2) if do_classifier_free_guidance else latents
+
                 # Get the text embedding for conditioning
                 # encoder_hidden_states = text_encoder(batch["input_ids"], return_dict=False)[0]
                 
-                batch_size = 1 if isinstance(prompt, str) else len(prompt)
-                # device = _execution_device()
-                # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
-                # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
-                # corresponds to doing no classifier free guidance.
-                guidance_scale = 7.5
-                do_classifier_free_guidance = guidance_scale > 1.0
-                num_images_per_prompt = 1
-                negative_prompt = None
-                text_embeddings = _encode_prompt(prompt, device, num_images_per_prompt, do_classifier_free_guidance, negative_prompt)
-
                 # Get the target for loss depending on the prediction type
                 if args.prediction_type is not None:
                     # set prediction_type of scheduler if defined
@@ -811,8 +830,72 @@ def main():
                 else:
                     raise ValueError(f"Unknown prediction type {noise_scheduler.config.prediction_type}")
 
+                # 5a. Compute the number of steps to run sketch conditioning
+                # sketch_conditioning_steps = (1 - sketch_cond_rate) * num_inference_steps
+                num_inference_steps = 1
+                start_cond_rate = 0.0
+                sketch_cond_rate = 0.2
+                start_cond_step = int(num_inference_steps * start_cond_rate)
+                sketch_start = start_cond_step
+                sketch_end = sketch_cond_rate * num_inference_steps + start_cond_step
+
+                # 4. Preprocess mask, image and posemap
+                pose_map = torch.nn.functional.interpolate(
+                    pose_map, size=(pose_map.shape[2] // 8, pose_map.shape[3] // 8), mode="bilinear"
+                )
+                no_pose = False
+                if no_pose:
+                    pose_map = torch.zeros_like(pose_map)
+                    
+                sketch = torchvision.transforms.functional.resize(
+                sketch, size=(sketch.shape[2] // 8, sketch.shape[3] // 8),
+                interpolation=torchvision.transforms.InterpolationMode.BILINEAR,
+                antialias=True)
+                sketch = sketch
+                # 7a. Prepare pose map latent variables
+                pose_map = torch.cat([torch.zeros_like(pose_map), pose_map]) if do_classifier_free_guidance else pose_map
+                sketch = torch.cat([torch.zeros_like(sketch), sketch]) if do_classifier_free_guidance else sketch
+                
+                # # 10a. Sketch conditioning
+                # if i < sketch_start or i > sketch_end:
+                #     local_sketch = torch.zeros_like(sketch)
+                # else:
+                local_sketch = sketch
+                
+                # 8. Check that sizes of mask, masked image and latents match
+                num_channels_mask = mask.shape[1]
+                num_channels_masked_image = masked_image_latents.shape[1]
+                num_channels_pose_map = pose_map.shape[1]
+                num_channels_sketch = sketch.shape[1]
+
+                if num_channels_latents + num_channels_mask + num_channels_masked_image + num_channels_pose_map + num_channels_sketch != unet.config.in_channels:
+                    raise ValueError(
+                        f"Incorrect configuration settings! The config of `pipeline.unet`: {unet.config} expects"
+                        f" {unet.config.in_channels} but received `num_channels_latents`: {num_channels_latents} +"
+                        f" `num_channels_mask`: {num_channels_mask} + `num_channels_masked_image`: {num_channels_masked_image}"
+                        f" = {num_channels_latents + num_channels_masked_image + num_channels_mask}. Please verify the config of"
+                        " `pipeline.unet` or your `mask_image` or `image` input."
+                    )
+                    
+                # concat latents, mask, masked_image_latents in the channel dimension
+                latent_model_input = noise_scheduler.scale_model_input(latent_model_input, timesteps)
+                latent_model_input = torch.cat(
+                    [latent_model_input, mask, masked_image_latents, pose_map.to(mask.dtype), local_sketch.to(mask.dtype)],
+                    dim=1)
+                
+                # print("2. latent_model_input type:", type(latent_model_input), " ", latent_model_input.size())
+
+                # predict the noise residual
+                # model_pred = unet(latent_model_input, timesteps, encoder_hidden_states=text_embeddings, return_dict=False)[0]
+                model_pred = unet(latent_model_input, timesteps, encoder_hidden_states=text_embeddings).sample
+
                 # Predict the noise residual and compute loss
-                model_pred = unet(noisy_latents, timesteps, encoder_hidden_states=text_embeddings, return_dict=False)[0]
+                # model_pred = unet(noisy_latents, timesteps, encoder_hidden_states=text_embeddings, return_dict=False)[0]
+
+                # perform guidance
+                if do_classifier_free_guidance:
+                    noise_pred_uncond, noise_pred_text = model_pred.chunk(2)
+                    model_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 if args.snr_gamma is None:
                     loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
