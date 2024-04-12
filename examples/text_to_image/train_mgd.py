@@ -266,7 +266,7 @@ def main():
 
     if args.scale_lr:
         args.learning_rate = (
-            args.learning_rate * args.gradient_accumulation_steps * args.train_batch_size * accelerator.num_processes
+            args.learning_rate * args.gradient_accumulation_steps * args.batch_size * accelerator.num_processes
         )
 
     # Initialize the optimizer
@@ -675,7 +675,7 @@ def main():
     
 
     # Train!
-    total_batch_size = args.train_batch_size * accelerator.num_processes * args.gradient_accumulation_steps
+    total_batch_size = args.batch_size * accelerator.num_processes * args.gradient_accumulation_steps
 
     logger.info("***** Running training *****")
     logger.info(f"  Num examples = {len(test_dataset)}")
@@ -746,8 +746,8 @@ def main():
                 vae_scale_factor = 2 ** (len(vae.config.block_out_channels) - 1)
                 height=512
                 width=384
-                height = height or unet.config.sample_size * vae_scale_factor
-                width = width or unet.config.sample_size * vae_scale_factor
+                height = height or accelerator.unwrap_model(unet).config.sample_size * vae_scale_factor
+                width = width or accelerator.unwrap_model(unet).config.sample_size * vae_scale_factor
 
                 batch_size = 1 if isinstance(prompt, str) else len(prompt)
                 # device = _execution_device()
@@ -876,10 +876,10 @@ def main():
                 num_channels_pose_map = pose_map.shape[1]
                 num_channels_sketch = sketch.shape[1]
 
-                if num_channels_latents + num_channels_mask + num_channels_masked_image + num_channels_pose_map + num_channels_sketch != unet.config.in_channels:
+                if num_channels_latents + num_channels_mask + num_channels_masked_image + num_channels_pose_map + num_channels_sketch != accelerator.unwrap_model(unet).config.in_channels:
                     raise ValueError(
-                        f"Incorrect configuration settings! The config of `pipeline.unet`: {unet.config} expects"
-                        f" {unet.config.in_channels} but received `num_channels_latents`: {num_channels_latents} +"
+                        f"Incorrect configuration settings! The config of `pipeline.unet`: {accelerator.unwrap_model(unet).config} expects"
+                        f" {accelerator.unwrap_model(unet).config.in_channels} but received `num_channels_latents`: {num_channels_latents} +"
                         f" `num_channels_mask`: {num_channels_mask} + `num_channels_masked_image`: {num_channels_masked_image}"
                         f" = {num_channels_latents + num_channels_masked_image + num_channels_mask}. Please verify the config of"
                         " `pipeline.unet` or your `mask_image` or `image` input."
@@ -925,7 +925,7 @@ def main():
                     loss = loss.mean()
 
                 # Gather the losses across all processes for logging (if we use distributed training).
-                avg_loss = accelerator.gather(loss.repeat(args.train_batch_size)).mean()
+                avg_loss = accelerator.gather(loss.repeat(args.batch_size)).mean()
                 train_loss += avg_loss.item() / args.gradient_accumulation_steps
 
                 # Backpropagate
