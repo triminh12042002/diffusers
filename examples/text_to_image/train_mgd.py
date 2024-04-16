@@ -395,18 +395,17 @@ def main():
     #     num_workers=args.dataloader_num_workers,
     # )
 
-    test_dataset = VitonHDDataset(
+    train_dataset = VitonHDDataset(
         dataroot_path=args.dataset_path,
-        phase='test',
-        order=args.test_order,
+        phase='train',
         sketch_threshold_range=(20, 20),
         radius=5,
         tokenizer=tokenizer,
         size=(512, 384),
     )
 
-    test_dataloader = torch.utils.data.DataLoader(
-        test_dataset,
+    train_dataloader = torch.utils.data.DataLoader(
+        train_dataset,
         shuffle=False,
         batch_size=args.batch_size,
         num_workers=args.num_workers_test,
@@ -414,7 +413,7 @@ def main():
 
     # Scheduler and math around the number of training steps.
     overrode_max_train_steps = False
-    num_update_steps_per_epoch = math.ceil(len(test_dataloader) / args.gradient_accumulation_steps)
+    num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
     if args.max_train_steps is None:
         args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
         overrode_max_train_steps = True
@@ -427,8 +426,8 @@ def main():
     )
 
     # Prepare everything with our `accelerator`.
-    unet, optimizer, test_dataloader, lr_scheduler = accelerator.prepare(
-        unet, optimizer, test_dataloader, lr_scheduler
+    unet, optimizer, train_dataloader, lr_scheduler = accelerator.prepare(
+        unet, optimizer, train_dataloader, lr_scheduler
     )
 
     if args.use_ema:
@@ -449,7 +448,7 @@ def main():
     vae.to(accelerator.device, dtype=weight_dtype)
 
     # We need to recalculate our total training steps as the size of the training dataloader may have changed.
-    num_update_steps_per_epoch = math.ceil(len(test_dataloader) / args.gradient_accumulation_steps)
+    num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
     if overrode_max_train_steps:
         args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
     # Afterwards we recalculate our number of training epochs
@@ -680,7 +679,7 @@ def main():
     logger.info("***** Running training *****")
     logger.info(f"  Num examples = {len(test_dataset)}")
     logger.info(f"  Num Epochs = {args.num_train_epochs}")
-    logger.info(f"  Instantaneous batch size per device = {args.train_batch_size}")
+    logger.info(f"  Instantaneous batch size per device = {args.batch_size}")
     logger.info(f"  Total train batch size (w. parallel, distributed & accumulation) = {total_batch_size}")
     logger.info(f"  Gradient Accumulation steps = {args.gradient_accumulation_steps}")
     logger.info(f"  Total optimization steps = {args.max_train_steps}")
@@ -725,7 +724,7 @@ def main():
 
     for epoch in range(first_epoch, args.num_train_epochs):
         train_loss = 0.0
-        for step, batch in enumerate(test_dataloader):
+        for step, batch in enumerate(train_dataloader):
             with accelerator.accumulate(unet):
                 # Convert images to latent space
                 # latents = vae.encode(batch["pixel_values"].to(weight_dtype)).latent_dist.sample()
