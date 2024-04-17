@@ -189,8 +189,17 @@ def main():
         
     # unet = torch.hub.load(map_location=torch.device('cpu'), dataset=args.dataset, repo_or_dir='aimagelab/multimodal-garment-designer', source='github',
                         #   model='mgd', pretrained=False)
+        
     unet = torch.hub.load(map_location=device, dataset=args.dataset, repo_or_dir='aimagelab/multimodal-garment-designer', source='github',
-                          model='mgd', pretrained=False)
+                          model='mgd', pretrained=True)
+    
+    # unet = torch.hub.load(map_location=device, dataset=args.dataset, repo_or_dir='/home/tri/Uni/Year4/Thesis/Experiment/results/diffusers/train_output/unet/', source='local',
+    #                       model='diffusion_pytorch_model.safetensors', pretrained=False)
+
+    # unet = UNet2DConditionModel.from_pretrained("/home/tri/Uni/Year4/Thesis/Experiment/results/diffusers/train_output/unet/",use_safetensors=True)
+    
+    # unet = UNet2DConditionModel.from_pretrained("teslayder/mgd",use_safetensors=True)
+
 
     # Freeze vae and text_encoder and set unet to trainable
     vae.requires_grad_(False)
@@ -1011,7 +1020,11 @@ def main():
             revision=args.revision,
             variant=args.variant,
         )
-        pipeline.save_pretrained(args.output_dir)
+        # pipeline.save_pretrained(args.output_dir)
+
+        # unet.save_pretrained(args.output_dir, )
+        torch.save(unet.state_dict(), args.output_dir)
+
 
         # Run a final round of inference.
         images = []
