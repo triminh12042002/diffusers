@@ -1026,7 +1026,12 @@ def main():
         # pipeline.save_pretrained(args.output_dir)
 
         # torch.save(unet.state_dict(), os.path.join(args.output_dir, "unet_viton.pth"))
-        unet.save_pretrained(os.path.join(args.output_dir, "unet"))
+            
+        unet.to(accelerator.device, dtype=weight_dtype)
+
+        torch.save(unet.state_dict(), os.path.join(args.output_dir, "unet_viton.pth"))
+
+        # unet.save_pretrained(os.path.join(args.output_dir, "unet"))
 
 
         # Run a final round of inference.
