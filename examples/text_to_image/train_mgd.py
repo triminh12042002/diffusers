@@ -1012,49 +1012,48 @@ def main():
         if args.use_ema:
             ema_unet.copy_to(unet.parameters())
 
-        pipeline = StableDiffusionPipeline.from_pretrained(
-            args.pretrained_model_name_or_path,
-            text_encoder=text_encoder,
-            vae=vae,
-            unet=unet,
-            revision=args.revision,
-            variant=args.variant,
-        )
+        # pipeline = StableDiffusionPipeline.from_pretrained(
+        #     args.pretrained_model_name_or_path,
+        #     text_encoder=text_encoder,
+        #     vae=vae,
+        #     unet=unet,
+        #     revision=args.revision,
+        #     variant=args.variant,
+        # )
         # pipeline.save_pretrained(args.output_dir)
 
-        # unet.save_pretrained(args.output_dir, )
-        torch.save(unet.state_dict(), args.output_dir)
+        torch.save(unet.state_dict(), os.path.join(args.output_dir, "unet_viton.pth"))
 
 
         # Run a final round of inference.
-        images = []
-        if args.validation_prompts is not None:
-            logger.info("Running inference for collecting generated images...")
-            pipeline = pipeline.to(accelerator.device)
-            pipeline.torch_dtype = weight_dtype
-            pipeline.set_progress_bar_config(disable=True)
+        # images = []
+        # if args.validation_prompts is not None:
+        #     logger.info("Running inference for collecting generated images...")
+        #     pipeline = pipeline.to(accelerator.device)
+        #     pipeline.torch_dtype = weight_dtype
+        #     pipeline.set_progress_bar_config(disable=True)
 
-            if args.enable_xformers_memory_efficient_attention:
-                pipeline.enable_xformers_memory_efficient_attention()
+        #     if args.enable_xformers_memory_efficient_attention:
+        #         pipeline.enable_xformers_memory_efficient_attention()
 
-            if args.seed is None:
-                generator = None
-            else:
-                generator = torch.Generator(device=accelerator.device).manual_seed(args.seed)
+        #     if args.seed is None:
+        #         generator = None
+        #     else:
+        #         generator = torch.Generator(device=accelerator.device).manual_seed(args.seed)
 
-            for i in range(len(args.validation_prompts)):
-                with torch.autocast("cuda"):
-                    image = pipeline(args.validation_prompts[i], num_inference_steps=20, generator=generator).images[0]
-                images.append(image)
+        #     for i in range(len(args.validation_prompts)):
+        #         with torch.autocast("cuda"):
+        #             image = pipeline(args.validation_prompts[i], num_inference_steps=20, generator=generator).images[0]
+        #         images.append(image)
 
-        if args.push_to_hub:
-            save_model_card(args, repo_id, images, repo_folder=args.output_dir)
-            upload_folder(
-                repo_id=repo_id,
-                folder_path=args.output_dir,
-                commit_message="End of training",
-                ignore_patterns=["step_*", "epoch_*"],
-            )
+        # if args.push_to_hub:
+        #     save_model_card(args, repo_id, images, repo_folder=args.output_dir)
+        #     upload_folder(
+        #         repo_id=repo_id,
+        #         folder_path=args.output_dir,
+        #         commit_message="End of training",
+        #         ignore_patterns=["step_*", "epoch_*"],
+        #     )
 
     accelerator.end_training()
 
