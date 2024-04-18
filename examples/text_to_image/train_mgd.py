@@ -193,6 +193,9 @@ def main():
     unet = torch.hub.load(map_location=device, dataset=args.dataset, repo_or_dir='aimagelab/multimodal-garment-designer', source='github',
                           model='mgd', pretrained=True)
     
+    # unet.to(accelerator.device, dtype=weight_dtype)
+
+    # unet.save_pretrained(os.path.join(args.output_dir, "unet"))
     # unet = torch.hub.load(map_location=device, dataset=args.dataset, repo_or_dir='/home/tri/Uni/Year4/Thesis/Experiment/results/diffusers/train_output/unet/', source='local',
     #                       model='diffusion_pytorch_model.safetensors', pretrained=False)
 
@@ -1022,7 +1025,8 @@ def main():
         # )
         # pipeline.save_pretrained(args.output_dir)
 
-        torch.save(unet.state_dict(), os.path.join(args.output_dir, "unet_viton.pth"))
+        # torch.save(unet.state_dict(), os.path.join(args.output_dir, "unet_viton.pth"))
+        unet.save_pretrained(os.path.join(args.output_dir, "unet"))
 
 
         # Run a final round of inference.
