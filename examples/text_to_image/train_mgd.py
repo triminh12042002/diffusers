@@ -191,7 +191,7 @@ def main():
                         #   model='mgd', pretrained=False)
         
     unet = torch.hub.load(map_location=device, dataset=args.dataset, repo_or_dir='aimagelab/multimodal-garment-designer', source='github',
-                          model='mgd', pretrained=False)
+                          model='mgd', pretrained=True)
     
     # unet = torch.hub.load(map_location=device, dataset=args.dataset, repo_or_dir='/home/tri/Uni/Year4/Thesis/Experiment/results/diffusers/train_output/unet/', source='local',
     #                       model='diffusion_pytorch_model.safetensors', pretrained=False)
