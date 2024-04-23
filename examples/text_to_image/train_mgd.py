@@ -952,6 +952,9 @@ def main():
                 lr_scheduler.step()
                 optimizer.zero_grad()
 
+            # take from below accelerator.sync_gradients
+            accelerator.log({"train_loss": train_loss}, step=global_step)
+
             # Checks if the accelerator has performed an optimization step behind the scenes
             if accelerator.sync_gradients:
                 if args.use_ema:
@@ -1036,7 +1039,15 @@ def main():
 
         # torch.save(unet.state_dict(), os.path.join(args.output_dir, "unet_viton.pth"))
 
-        unet.save_pretrained(os.path.join(args.output_dir, "unet"))
+        unet.save_pretrained(os.path.join(args.output_dir, "save_pretrained_unet"))
+
+        torch.save({
+            'epoch': args.num_train_epochs,
+            'num_training_steps': args.max_train_steps * accelerator.num_processes,
+            'model_state_dict': unet.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'loss': loss.detach().item(),
+            }, os.path.join(args.output_dir, "torch_save_unet"))
 
 
         # Run a final round of inference.
