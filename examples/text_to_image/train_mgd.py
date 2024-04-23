@@ -39,11 +39,11 @@ from huggingface_hub import create_repo, upload_folder
 from packaging import version
 from torchvision import transforms
 from tqdm.auto import tqdm
-from transformers import CLIPTextModel, CLIPTokenizer
+from transformers import CLIPTextModel, CLIPTokenizer, CLIPModel, CLIPTextConfig
 from transformers.utils import ContextManagers
 
 import diffusers
-from diffusers import AutoencoderKL, DDIMScheduler, UNet2DConditionModel, CLIPModel, CLIPTextConfig
+from diffusers import AutoencoderKL, DDIMScheduler, UNet2DConditionModel
 from diffusers.optimization import get_scheduler
 from diffusers.training_utils import EMAModel, compute_snr
 from diffusers.utils import check_min_version, deprecate, is_wandb_available
