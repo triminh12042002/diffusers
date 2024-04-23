@@ -953,7 +953,7 @@ def main():
                 optimizer.zero_grad()
 
             # take from below accelerator.sync_gradients
-            print({"train_loss": train_loss}, step=global_step)
+            # print({"train_loss": train_loss}, step=global_step)
 
             # Checks if the accelerator has performed an optimization step behind the scenes
             if accelerator.sync_gradients:
@@ -1041,17 +1041,17 @@ def main():
 
         unet.save_pretrained(os.path.join(args.output_dir, "save_pretrained_unet"))
 
-        torch.save({
-            'epoch': args.num_train_epochs,
-            'num_training_steps': args.max_train_steps * accelerator.num_processes,
-            'model_state_dict': unet.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'loss': loss.detach().item(),
-            }, os.path.join(args.output_dir, "torch_save_unet.pt"))
+        # torch.save({
+        #     'epoch': args.num_train_epochs,
+        #     'num_training_steps': args.max_train_steps * accelerator.num_processes,
+        #     'model_state_dict': unet.state_dict(),
+        #     'optimizer_state_dict': optimizer.state_dict(),
+        #     'loss': loss.detach().item(),
+        #     }, os.path.join(args.output_dir, "torch_save_unet.pt"))
 
 
         # Save the starting state
-        accelerator.save_state(os.path.join(args.output_dir, " accelerator.save_state_checkpoint_0"))
+        # accelerator.save_state(os.path.join(args.output_dir, " accelerator.save_state_checkpoint_0"))
 
         # Run a final round of inference.
         # images = []
