@@ -43,7 +43,7 @@ from transformers import CLIPTextModel, CLIPTokenizer
 from transformers.utils import ContextManagers
 
 import diffusers
-from diffusers import AutoencoderKL, DDPMScheduler, DDIMScheduler, StableDiffusionPipeline, UNet2DConditionModel
+from diffusers import AutoencoderKL, DDIMScheduler, UNet2DConditionModel, CLIPModel, CLIPTextConfig
 from diffusers.optimization import get_scheduler
 from diffusers.training_utils import EMAModel, compute_snr
 from diffusers.utils import check_min_version, deprecate, is_wandb_available
@@ -176,9 +176,14 @@ def main():
         # vae = AutoencoderKL.from_pretrained(
         #     args.pretrained_model_name_or_path, subfolder="vae", revision=args.revision, variant=args.variant
         # )
-        text_encoder = CLIPTextModel.from_pretrained(
-            args.pretrained_model_name_or_path, subfolder="text_encoder", revision=args.revision
-        )
+        # text_encoder = CLIPTextModel.from_pretrained(
+        #     args.pretrained_model_name_or_path, subfolder="text_encoder", revision=args.revision
+        # )
+
+        clip_model = CLIPModel.from_pretrained(args.pretrained_model_path_of_CLIP)
+        text_encoder = CLIPTextModel(CLIPTextConfig.from_pretrained(args.pretrained_model_path_of_CLIP))
+        text_encoder.text_model = clip_model.text_model
+        
         vae = AutoencoderKL.from_pretrained(
             args.pretrained_model_name_or_path, subfolder="vae", revision=args.revision
         )
@@ -298,7 +303,7 @@ def main():
         unet.parameters(),
         lr=args.learning_rate,
         betas=(args.adam_beta1, args.adam_beta2),
-        weight_decay=args.adam_weight_decay,
+        weight_decay=args.adam_weight_decay,    #edit weight decay here
         eps=args.adam_epsilon,
     )
 
@@ -1029,9 +1034,9 @@ def main():
             
         unet.to(accelerator.device, dtype=weight_dtype)
 
-        torch.save(unet.state_dict(), os.path.join(args.output_dir, "unet_viton.pth"))
+        # torch.save(unet.state_dict(), os.path.join(args.output_dir, "unet_viton.pth"))
 
-        # unet.save_pretrained(os.path.join(args.output_dir, "unet"))
+        unet.save_pretrained(os.path.join(args.output_dir, "unet"))
 
 
         # Run a final round of inference.
