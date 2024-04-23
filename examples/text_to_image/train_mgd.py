@@ -953,7 +953,7 @@ def main():
                 optimizer.zero_grad()
 
             # take from below accelerator.sync_gradients
-            accelerator.log({"train_loss": train_loss}, step=global_step)
+            print({"train_loss": train_loss}, step=global_step)
 
             # Checks if the accelerator has performed an optimization step behind the scenes
             if accelerator.sync_gradients:
@@ -1047,8 +1047,11 @@ def main():
             'model_state_dict': unet.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
             'loss': loss.detach().item(),
-            }, os.path.join(args.output_dir, "torch_save_unet"))
+            }, os.path.join(args.output_dir, "torch_save_unet.pt"))
 
+
+        # Save the starting state
+        accelerator.save_state(os.path.join(args.output_dir, " accelerator.save_state_checkpoint_0"))
 
         # Run a final round of inference.
         # images = []
