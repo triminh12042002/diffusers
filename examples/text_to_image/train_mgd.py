@@ -703,6 +703,8 @@ def main():
     global_step = 0
     first_epoch = 0
 
+    best_loss = 1e9
+    
     # Potentially load in the weights and states from a previous save
     if args.resume_from_checkpoint:
         if args.resume_from_checkpoint != "latest":
@@ -964,6 +966,16 @@ def main():
                 accelerator.log({"train_loss": train_loss}, step=global_step)
                 train_loss = 0.0
 
+                # save best loss 
+
+                step_loss = loss.detach().item()
+                if accelerator.is_local_main_process:
+                    if best_loss > step_loss:
+                        best_loss = step_loss
+                        save_path = os.path.join(args.output_dir, "best-loss-checkpoint")
+                        accelerator.save_state(save_path)
+                        logger.info(f"Saved best loss with checkpoint step {global_step} state to {save_path}")
+                    
                 if global_step % args.checkpointing_steps == 0:
                     if accelerator.is_main_process:
                         # _before_ saving state, check if this save would set us over the `checkpoints_total_limit`
