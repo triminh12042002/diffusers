@@ -724,7 +724,7 @@ def main():
             initial_global_step = 0
         else:
             accelerator.print(f"Resuming from checkpoint {path}")
-            accelerator.load_state(path)
+            accelerator.load_state(args.resume_from_checkpoint)
             global_step = int(path.split("-")[1])
 
             initial_global_step = global_step
