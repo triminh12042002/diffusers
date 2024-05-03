@@ -176,13 +176,13 @@ def main():
         # vae = AutoencoderKL.from_pretrained(
         #     args.pretrained_model_name_or_path, subfolder="vae", revision=args.revision, variant=args.variant
         # )
-        # text_encoder = CLIPTextModel.from_pretrained(
-        #     args.pretrained_model_name_or_path, subfolder="text_encoder", revision=args.revision
-        # )
+        text_encoder = CLIPTextModel.from_pretrained(
+            args.pretrained_model_name_or_path, subfolder="text_encoder", revision=args.revision
+        )
 
-        clip_model = CLIPModel.from_pretrained(args.pretrained_model_path_of_CLIP)
-        text_encoder = CLIPTextModel(CLIPTextConfig.from_pretrained(args.pretrained_model_path_of_CLIP))
-        text_encoder.text_model = clip_model.text_model
+        # clip_model = CLIPModel.from_pretrained(args.pretrained_model_path_of_CLIP)
+        # text_encoder = CLIPTextModel(CLIPTextConfig.from_pretrained(args.pretrained_model_path_of_CLIP))
+        # text_encoder.text_model = clip_model.text_model
         
         vae = AutoencoderKL.from_pretrained(
             args.pretrained_model_name_or_path, subfolder="vae", revision=args.revision
