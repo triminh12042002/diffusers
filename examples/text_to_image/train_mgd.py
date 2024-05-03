@@ -870,15 +870,15 @@ def main():
                                     shutil.rmtree(removing_checkpoint)
 
                         save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}")
-                        accelerator.save_state(save_path)
-                        logger.info(f"Saved state to {save_path}")
+                        # accelerator.save_state(save_path)
+                        # logger.info(f"Saved state to {save_path}")
 
-                        step_loss = loss.detach().item()
-                        if best_loss > step_loss:
-                            best_loss = step_loss
-                            save_path = os.path.join(args.output_dir, "best-loss-checkpoint")
-                            accelerator.save_state(save_path)
-                            logger.info(f"Saved best loss {step_loss} with checkpoint step {global_step} state to {save_path}")
+                        # step_loss = loss.detach().item()
+                        # if best_loss > step_loss:
+                        #     best_loss = step_loss
+                        #     save_path = os.path.join(args.output_dir, "best-loss-checkpoint")
+                        #     accelerator.save_state(save_path)
+                        #     logger.info(f"Saved best loss {step_loss} with checkpoint step {global_step} state to {save_path}")
 
             logs = {"step_loss": loss.detach().item(), "lr": lr_scheduler.get_last_lr()[0]}
             progress_bar.set_postfix(**logs)
