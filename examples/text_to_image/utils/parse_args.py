@@ -116,6 +116,7 @@ def parse_args():
     parser.add_argument(
         "--train_batch_size", type=int, default=1, help="Batch size (per device) for the training dataloader."
     )
+    parser.add_argument("--log_loss_steps", type=int, default=10)
     parser.add_argument("--num_train_epochs", type=int, default=100)
     parser.add_argument(
         "--max_train_steps",

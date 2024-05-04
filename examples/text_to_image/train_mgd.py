@@ -845,8 +845,9 @@ def main():
 
                 # save best loss 
 
-                
-                    
+                if global_step % args.log_loss_steps == 0:
+                    print("global_step:", global_step, "; avg_loss:", avg_loss, "; train_loss:", train_loss, "; step_loss:", loss.detach().item()) 
+
                 if global_step % args.checkpointing_steps == 0:
                     if accelerator.is_main_process:
                         # _before_ saving state, check if this save would set us over the `checkpoints_total_limit`
