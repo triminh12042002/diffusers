@@ -841,13 +841,14 @@ def main():
                 progress_bar.update(1)
                 global_step += 1
                 accelerator.log({"train_loss": train_loss}, step=global_step)
-                train_loss = 0.0
 
                 # save best loss 
 
                 if global_step % args.log_loss_steps == 0:
-                    print("global_step:", global_step, "; avg_loss:", avg_loss, "; train_loss:", train_loss, "; step_loss:", loss.detach().item()) 
+                    print("global_step:", global_step, "; avg_loss:", avg_loss.detach().item(), "; train_loss:", train_loss, "; step_loss:", loss.detach().item()) 
 
+                train_loss = 0.0
+                
                 if global_step % args.checkpointing_steps == 0:
                     if accelerator.is_main_process:
                         # _before_ saving state, check if this save would set us over the `checkpoints_total_limit`
