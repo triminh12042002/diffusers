@@ -845,9 +845,9 @@ def main():
                 # save best loss 
 
                 if global_step % args.log_loss_steps == 0:
-                    print("global_step:", global_step, "; avg_loss:", avg_loss.detach().item(), "; train_loss:", train_loss, "; step_loss:", loss.detach().item()) 
+                    print("global_step:", global_step, "; avg_loss:", train_loss / global_step, "; train_loss:", train_loss, "; step_loss:", loss.detach().item()) 
 
-                train_loss = 0.0
+                # train_loss = 0.0
                 
                 if global_step % args.checkpointing_steps == 0:
                     if accelerator.is_main_process:
