@@ -71,10 +71,13 @@ import torchvision
 import torchvision.transforms as T
 from PIL import Image
 
+import os 
 def saveTensorToImage(tensor, file_name):
+    if not os.path.exists('log_train_data'):
+        os.makedirs('log_train_data')
     transform = T.ToPILImage()
     img = transform(tensor)
-    img.save(file_name + ".png")
+    img.save("log_train_data/" + file_name + ".png")
 
 # Will error if the minimal version of diffusers is not installed. Remove at your own risks.
 check_min_version("0.28.0.dev0")
@@ -332,6 +335,14 @@ def main():
         model = model._orig_mod if is_compiled_module(model) else model
         return model
 
+    def decode_latents(vae, latents):
+        latents = 1 / 0.18215 * latents
+        image = vae.decode(latents).sample
+        image = (image / 2 + 0.5).clamp(0, 1)
+        # we always cast to float32 as this does not cause significant overhead and is compatible with bfloa16
+        image = image.cpu().permute(0, 2, 3, 1).float().numpy()
+        return image
+    
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline._encode_prompt
     def _encode_prompt(prompt: Union[str, List[str]], device, num_images_per_prompt, do_classifier_free_guidance, negative_prompt: Optional[Union[str, List[str]]] = None):
         r"""
@@ -751,13 +762,7 @@ def main():
                 # model_pred = unet(latent_model_input, timesteps, encoder_hidden_states=text_embeddings, return_dict=False)[0]
                 model_pred = unet(latent_model_input, timesteps, encoder_hidden_states=text_embeddings).sample
 
-                # print out input and outptu to verify data
-                if count_data == 1:
-                    saveTensorToImage(target, "target")
-                    saveTensorToImage(latent_model_input, "latent_model_input")
-                    saveTensorToImage(mask, "mask")
-                    saveTensorToImage(local_sketch.to(mask.dtype), "local_sketch.to(mask.dtype)")
-                    saveTensorToImage(model_pred, "model_pred")
+                
 
                 # Predict the noise residual and compute loss
                 # model_pred = unet(noisy_latents, timesteps, encoder_hidden_states=text_embeddings, return_dict=False)[0]
@@ -766,6 +771,20 @@ def main():
                 if do_classifier_free_guidance:
                     noise_pred_uncond, noise_pred_text = model_pred.chunk(2)
                     model_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
+
+                # print out input and outptu to verify data
+                if count_data == 1:
+                    image_target = decode_latents(vae, target)
+                    saveTensorToImage(image_target, "target")
+
+                    saveTensorToImage(mask, "mask")
+                    saveTensorToImage(local_sketch.to(mask.dtype), "local_sketch.to(mask.dtype)")
+
+                    image_noise_pred_text = decode_latents(vae, noise_pred_text)
+                    saveTensorToImage(image_noise_pred_text, "noise_pred_text")
+
+                    image_model_pred = decode_latents(vae, model_pred)
+                    saveTensorToImage(image_model_pred, "model_pred")
 
                 if args.snr_gamma is None:
                     loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
