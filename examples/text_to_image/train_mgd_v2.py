@@ -822,17 +822,18 @@ def main():
                     # saveNumpyArrayToImage(image_noise_pred_text, "noise_pred_text_0")
 
                     print("target.shape", target.shape)
-                    
-                    print("model_pred[0].shape", model_pred[0].shape)
-                    image_model_pred = decode_latents(vae, model_pred[0].half())
+
+                    print("model_pred.shape", model_pred.shape)
+                    image_model_pred = decode_latents(vae, model_pred.half())
                     print("image_model_pred.shape", image_model_pred.shape)
-                    saveNumpyArrayToImage(image_model_pred, "model_pred_0")
+                    saveNumpyArrayToImage(image_model_pred[0], "model_pred_0")
+                    saveNumpyArrayToImage(image_model_pred[1], "model_pred_1")
 
                     # image_noise_pred_text = decode_latents(vae, noise_pred_text[1].half())
                     # saveNumpyArrayToImage(image_noise_pred_text, "noise_pred_text_1")
 
-                    image_model_pred = decode_latents(vae, model_pred[1].half())
-                    saveNumpyArrayToImage(image_model_pred, "model_pred_1")
+                    # image_model_pred = decode_latents(vae, model_pred[1].half())
+                    # saveNumpyArrayToImage(image_model_pred, "model_pred_1")
 
                 if args.snr_gamma is None:
                     loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
