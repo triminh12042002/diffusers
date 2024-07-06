@@ -81,9 +81,10 @@ check_min_version("0.28.0.dev0")
 
 logger = get_logger(__name__, log_level="INFO")
 
-count_data = 0
 
 def main():
+    count_data = 0
+
     args = parse_args()
 
     if args.report_to == "wandb" and args.hub_token is not None:
