@@ -808,10 +808,10 @@ def main():
 
                 # print out input and outptu to verify data
                 if count_data == 1:
-                    image_noise_pred_text = decode_latents(vae, noise_pred_text.float())
+                    image_noise_pred_text = decode_latents(vae, noise_pred_text.half())
                     saveNumpyArrayToImage(image_noise_pred_text, "noise_pred_text")
 
-                    image_model_pred = decode_latents(vae, model_pred.float())
+                    image_model_pred = decode_latents(vae, model_pred.half())
                     saveNumpyArrayToImage(image_model_pred, "model_pred")
 
                 if args.snr_gamma is None:
