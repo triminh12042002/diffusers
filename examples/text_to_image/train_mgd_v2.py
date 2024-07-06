@@ -82,6 +82,8 @@ def saveTensorToImage(tensor, file_name):
 def saveNumpyArrayToImage(nparray, file_name):
     if not os.path.exists('log_train_data'):
         os.makedirs('log_train_data')
+    
+    print("nparray.shape", nparray.shape)
     img = T.functional.to_pil_image(nparray)
     img.save("log_train_data/" + file_name + ".png")
 
@@ -350,6 +352,8 @@ def main():
     def decode_latents(vae, latents):
         latents = 1 / 0.18215 * latents
         image = vae.decode(latents).sample
+        print("latents.shape", latents.shape)
+        print("image.shape", image.shape)
         image = (image / 2 + 0.5).clamp(0, 1)
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloa16
         # image = image.cpu().permute(0, 2, 3, 1).float().numpy()
@@ -796,6 +800,7 @@ def main():
                 # predict the noise residual
                 # model_pred = unet(latent_model_input, timesteps, encoder_hidden_states=text_embeddings, return_dict=False)[0]
                 model_pred = unet(latent_model_input, timesteps, encoder_hidden_states=text_embeddings).sample
+                print("model_pred.shape", model_pred.shape)
 
                 
 
