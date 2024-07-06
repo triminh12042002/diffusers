@@ -83,7 +83,7 @@ def saveNumpyArrayToImage(nparray, file_name):
     if not os.path.exists('log_train_data'):
         os.makedirs('log_train_data')
     
-    print("nparray.shape", nparray.shape)
+    # print("nparray.shape", nparray.shape)
     img = T.functional.to_pil_image(nparray)
     img.save("log_train_data/" + file_name + ".png")
 
@@ -816,18 +816,20 @@ def main():
 
                 # print out input and outptu to verify data
                 if count_data == 1:
-                    print("noise_pred_text[0].shape", noise_pred_text[0].shape)
-                    image_noise_pred_text = decode_latents(vae, noise_pred_text[0].half())
-                    print("image_noise_pred_text.shape", image_noise_pred_text.shape)
-                    saveNumpyArrayToImage(image_noise_pred_text, "noise_pred_text_0")
+                    # print("noise_pred_text[0].shape", noise_pred_text[0].shape)
+                    # image_noise_pred_text = decode_latents(vae, noise_pred_text[0].half())
+                    # print("image_noise_pred_text.shape", image_noise_pred_text.shape)
+                    # saveNumpyArrayToImage(image_noise_pred_text, "noise_pred_text_0")
 
+                    print("target.shape", target.shape)
+                    
                     print("model_pred[0].shape", model_pred[0].shape)
                     image_model_pred = decode_latents(vae, model_pred[0].half())
                     print("image_model_pred.shape", image_model_pred.shape)
                     saveNumpyArrayToImage(image_model_pred, "model_pred_0")
 
-                    image_noise_pred_text = decode_latents(vae, noise_pred_text[1].half())
-                    saveNumpyArrayToImage(image_noise_pred_text, "noise_pred_text_1")
+                    # image_noise_pred_text = decode_latents(vae, noise_pred_text[1].half())
+                    # saveNumpyArrayToImage(image_noise_pred_text, "noise_pred_text_1")
 
                     image_model_pred = decode_latents(vae, model_pred[1].half())
                     saveNumpyArrayToImage(image_model_pred, "model_pred_1")
