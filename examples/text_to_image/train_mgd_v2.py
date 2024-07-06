@@ -79,6 +79,14 @@ def saveTensorToImage(tensor, file_name):
     img = transform(tensor)
     img.save("log_train_data/" + file_name + ".png")
 
+def saveNumpyArrayToImage(nparray, file_name):
+    if not os.path.exists('log_train_data'):
+        os.makedirs('log_train_data')
+    img = T.functional.to_pil_image(nparray)
+    img.save("log_train_data/" + file_name + ".png")
+
+    
+
 # Will error if the minimal version of diffusers is not installed. Remove at your own risks.
 check_min_version("0.28.0.dev0")
 
@@ -173,6 +181,10 @@ def main():
         )
 
         
+    # unet = UNet2DConditionModel.from_pretrained(
+    #     args.pretrained_model_name_or_path, subfolder="unet", revision=args.non_ema_revision
+    # )
+
     unet = torch.hub.load(map_location=device, dataset=args.dataset, repo_or_dir='aimagelab/multimodal-garment-designer', source='github',
                           model='mgd', pretrained=True)
     
@@ -656,7 +668,11 @@ def main():
 
                 num_channels_masked_image = masked_image_latents.shape[1]
 
-                
+                if count_data == 1:
+                    image_target = decode_latents(vae, latents)
+                    saveNumpyArrayToImage(image_target[0], "latents_0")
+                    saveNumpyArrayToImage(image_target[1], "latents_1")
+
                 # Sample noise that we'll add to the latents
                 noise = torch.randn_like(latents)
                 if args.noise_offset:
@@ -671,7 +687,8 @@ def main():
                 # timesteps = torch.randint(0, noise_scheduler.config.num_train_timesteps, (bsz,), device=latents.device)
                 # rand i time step from 0 to 1000
                 timesteps = torch.randint(0, noise_scheduler.config.num_train_timesteps, (1,) , device=latents.device)
-                print("650 timesteps:", timesteps)
+                # timesteps = torch.randint(0, 50, (1,) , device=latents.device)
+                print("691 timesteps / config:", timesteps, "/", noise_scheduler.config.num_train_timesteps)
                 # timesteps = timesteps.long()
 
                 # Add noise to the latents according to the noise magnitude at each timestep
@@ -682,6 +699,11 @@ def main():
                     noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
 
                 latents = noisy_latents
+
+                if count_data == 1:
+                    image_target = decode_latents(vae, noisy_latents)
+                    saveNumpyArrayToImage(image_target[0], "noisy_latents_0")
+                    saveNumpyArrayToImage(image_target[1], "noisy_latents_1")
 
                 # expand the latents if we are doing classifier free guidance
                 latent_model_input = torch.cat([latents] * 2) if do_classifier_free_guidance else latents
@@ -741,14 +763,18 @@ def main():
                 num_channels_pose_map = pose_map.shape[1]
                 num_channels_sketch = sketch.shape[1]
 
-                if num_channels_latents + num_channels_mask + num_channels_masked_image + num_channels_pose_map + num_channels_sketch != accelerator.unwrap_model(unet).config.in_channels:
-                    raise ValueError(
-                        f"Incorrect configuration settings! The config of `pipeline.unet`: {accelerator.unwrap_model(unet).config} expects"
-                        f" {accelerator.unwrap_model(unet).config.in_channels} but received `num_channels_latents`: {num_channels_latents} +"
-                        f" `num_channels_mask`: {num_channels_mask} + `num_channels_masked_image`: {num_channels_masked_image}"
-                        f" = {num_channels_latents + num_channels_masked_image + num_channels_mask}. Please verify the config of"
-                        " `pipeline.unet` or your `mask_image` or `image` input."
-                    )
+                total_channel = num_channels_latents + num_channels_mask + num_channels_masked_image + num_channels_pose_map + num_channels_sketch
+                print("total channel:", total_channel)
+
+                print("config unet channel:", accelerator.unwrap_model(unet).config.in_channels)
+                # if num_channels_latents + num_channels_mask + num_channels_masked_image + num_channels_pose_map + num_channels_sketch != accelerator.unwrap_model(unet).config.in_channels:
+                    # raise ValueError(
+                    #     f"Incorrect configuration settings! The config of `pipeline.unet`: {accelerator.unwrap_model(unet).config} expects"
+                    #     f" {accelerator.unwrap_model(unet).config.in_channels} but received `num_channels_latents`: {num_channels_latents} +"
+                    #     f" `num_channels_mask`: {num_channels_mask} + `num_channels_masked_image`: {num_channels_masked_image}"
+                    #     f" = {num_channels_latents + num_channels_masked_image + num_channels_mask}. Please verify the config of"
+                    #     " `pipeline.unet` or your `mask_image` or `image` input."
+                    # )
                     
                 # concat latents, mask, masked_image_latents in the channel dimension
                 latent_model_input = noise_scheduler.scale_model_input(latent_model_input, timesteps)
@@ -756,7 +782,15 @@ def main():
                     [latent_model_input, mask, masked_image_latents, pose_map.to(mask.dtype), local_sketch.to(mask.dtype)],
                     dim=1)
                 
-                # print("2. latent_model_input type:", type(latent_model_input), " ", latent_model_input.size())
+                # print out input and outptu to verify data
+                if count_data == 1:
+                    image_target = decode_latents(vae, target)
+                    saveNumpyArrayToImage(image_target[0], "target 0")
+                    saveNumpyArrayToImage(image_target[1], "target 1")
+
+                    # saveTensorToImage(mask, "mask")
+                    # saveTensorToImage(local_sketch.to(mask.dtype), "local_sketch.to(mask.dtype)")
+
 
                 # predict the noise residual
                 # model_pred = unet(latent_model_input, timesteps, encoder_hidden_states=text_embeddings, return_dict=False)[0]
@@ -774,17 +808,11 @@ def main():
 
                 # print out input and outptu to verify data
                 if count_data == 1:
-                    image_target = decode_latents(vae, target)
-                    saveTensorToImage(image_target, "target")
-
-                    saveTensorToImage(mask, "mask")
-                    saveTensorToImage(local_sketch.to(mask.dtype), "local_sketch.to(mask.dtype)")
-
                     image_noise_pred_text = decode_latents(vae, noise_pred_text)
-                    saveTensorToImage(image_noise_pred_text, "noise_pred_text")
+                    saveNumpyArrayToImage(image_noise_pred_text, "noise_pred_text")
 
                     image_model_pred = decode_latents(vae, model_pred)
-                    saveTensorToImage(image_model_pred, "model_pred")
+                    saveNumpyArrayToImage(image_model_pred, "model_pred")
 
                 if args.snr_gamma is None:
                     loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")

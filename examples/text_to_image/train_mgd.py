@@ -688,7 +688,7 @@ def main():
 
 
                 num_channels_masked_image = masked_image_latents.shape[1]
-
+                
                 
                 # Sample noise that we'll add to the latents
                 noise = torch.randn_like(latents)
