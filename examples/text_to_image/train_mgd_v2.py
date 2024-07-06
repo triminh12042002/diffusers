@@ -352,8 +352,8 @@ def main():
     def decode_latents(vae, latents):
         latents = 1 / 0.18215 * latents
         image = vae.decode(latents).sample
-        print("latents.shape", latents.shape)
-        print("image.shape", image.shape)
+        # print("latents.shape", latents.shape)
+        # print("image.shape", image.shape)
         image = (image / 2 + 0.5).clamp(0, 1)
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloa16
         # image = image.cpu().permute(0, 2, 3, 1).float().numpy()
@@ -811,14 +811,26 @@ def main():
                 if do_classifier_free_guidance:
                     noise_pred_uncond, noise_pred_text = model_pred.chunk(2)
                     model_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
+                
+
 
                 # print out input and outptu to verify data
                 if count_data == 1:
-                    image_noise_pred_text = decode_latents(vae, noise_pred_text.half())
-                    saveNumpyArrayToImage(image_noise_pred_text, "noise_pred_text")
+                    print("noise_pred_text[0].shape", noise_pred_text[0].shape)
+                    image_noise_pred_text = decode_latents(vae, noise_pred_text[0].half())
+                    print("image_noise_pred_text.shape", image_noise_pred_text.shape)
+                    saveNumpyArrayToImage(image_noise_pred_text, "noise_pred_text_0")
 
-                    image_model_pred = decode_latents(vae, model_pred.half())
-                    saveNumpyArrayToImage(image_model_pred, "model_pred")
+                    print("model_pred[0].shape", model_pred[0].shape)
+                    image_model_pred = decode_latents(vae, model_pred[0].half())
+                    print("image_model_pred.shape", image_model_pred.shape)
+                    saveNumpyArrayToImage(image_model_pred, "model_pred_0")
+
+                    image_noise_pred_text = decode_latents(vae, noise_pred_text[1].half())
+                    saveNumpyArrayToImage(image_noise_pred_text, "noise_pred_text_1")
+
+                    image_model_pred = decode_latents(vae, model_pred[1].half())
+                    saveNumpyArrayToImage(image_model_pred, "model_pred_1")
 
                 if args.snr_gamma is None:
                     loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
