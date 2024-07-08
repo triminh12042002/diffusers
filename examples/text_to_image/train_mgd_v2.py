@@ -714,6 +714,7 @@ def main():
                 # timesteps = torch.randint(0, noise_scheduler.config.num_train_timesteps, (1,) , device=latents.device)
                 timesteps = torch.randint(0, 50, (1,) , device=latents.device)
                 print("691 timesteps / config:", timesteps, "/", noise_scheduler.config.num_train_timesteps)
+                print("691 timesteps - 10 / config:", timesteps - 20, "/", noise_scheduler.config.num_train_timesteps)
                 # timesteps = timesteps.long()
 
                 # Add noise to the latents according to the noise magnitude at each timestep
@@ -728,7 +729,7 @@ def main():
                 latents = noisy_latents
 
                 if count_data == 1:
-                    image_target = decode_latents(vae, noisy_latents)
+                    image_target = decode_latents(vae, latents)
                     saveNumpyArrayToImage(image_target[0], "noisy_latents_0")
                     saveNumpyArrayToImage(image_target[1], "noisy_latents_1")
 
@@ -819,7 +820,7 @@ def main():
                     saveNumpyArrayToImage(image_target[0], "target_noisy_latents_0")
                     saveNumpyArrayToImage(image_target[1], "target_noisy_latents_1")
 
-                    target_noisy_latents
+                    # target_noisy_latents
 
                     # saveTensorToImage(mask, "mask")
                     # saveTensorToImage(local_sketch.to(mask.dtype), "local_sketch.to(mask.dtype)")
