@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import inspect
+
 import logging
 import math
 import os
@@ -496,6 +498,24 @@ def main():
         # scale the initial noise by the standard deviation required by the scheduler
         latents = latents * noise_scheduler.init_noise_sigma
         return latents
+    
+    # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_extra_step_kwargs
+    def prepare_extra_step_kwargs(generator, eta):
+        # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
+        # eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.
+        # eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502
+        # and should be between [0, 1]
+
+        accepts_eta = "eta" in set(inspect.signature(noise_scheduler.step).parameters.keys())
+        extra_step_kwargs = {}
+        if accepts_eta:
+            extra_step_kwargs["eta"] = eta
+
+        # check if the scheduler accepts generator
+        accepts_generator = "generator" in set(inspect.signature(noise_scheduler.step).parameters.keys())
+        if accepts_generator:
+            extra_step_kwargs["generator"] = generator
+        return extra_step_kwargs
 
     def prepare_mask_latents(
             mask, masked_image, batch_size, height, width, dtype, device, generator, do_classifier_free_guidance
@@ -702,6 +722,8 @@ def main():
                     noisy_latents = noise_scheduler.add_noise(latents, new_noise, timesteps)
                 else:
                     noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
+                
+                # target_noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps-1)
 
                 latents = noisy_latents
 
@@ -799,8 +821,8 @@ def main():
 
                 # predict the noise residual
                 # model_pred = unet(latent_model_input, timesteps, encoder_hidden_states=text_embeddings, return_dict=False)[0]
-                model_pred = unet(latent_model_input, timesteps, encoder_hidden_states=text_embeddings).sample
-                print("model_pred.shape", model_pred.shape)
+                noise_pred = unet(latent_model_input, timesteps, encoder_hidden_states=text_embeddings).sample
+                print("model_pred.shape", noise_pred.shape)
 
                 
 
@@ -809,10 +831,15 @@ def main():
 
                 # perform guidance
                 if do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = model_pred.chunk(2)
-                    model_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+                    noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
                 
+                eta = 0.0
+                extra_step_kwargs = prepare_extra_step_kwargs(generator, eta)
 
+                # compute the previous noisy sample x_t -> x_t-1
+                latents = noise_scheduler.step(noise_pred, timesteps, latents, **extra_step_kwargs).prev_sample.to(
+                    vae.dtype)
 
                 # print out input and outptu to verify data
                 if count_data == 1:
@@ -823,11 +850,18 @@ def main():
 
                     print("target.shape", target.shape)
 
-                    print("model_pred.shape", model_pred.shape)
-                    image_model_pred = decode_latents(vae, model_pred.half())
-                    print("image_model_pred.shape", image_model_pred.shape)
-                    saveNumpyArrayToImage(image_model_pred[0], "model_pred_0")
-                    saveNumpyArrayToImage(image_model_pred[1], "model_pred_1")
+                    print("noise_pred.shape", noise_pred.shape)
+                    image_noise_pred = decode_latents(vae, noise_pred.half())
+                    print("image_noise_pred.shape", image_noise_pred.shape)
+                    saveNumpyArrayToImage(image_noise_pred[0], "noise_pred_0")
+                    saveNumpyArrayToImage(image_noise_pred[1], "noise_pred_1")
+
+
+                    print("latents_t_1.shape", latents.shape)
+                    image_latents = decode_latents(vae, latents.half())
+                    print("image_latents_t_1.shape", image_latents.shape)
+                    saveNumpyArrayToImage(image_latents[0], "latents_t_1_0")
+                    saveNumpyArrayToImage(image_latents[1], "latents_t_1_1")
 
                     # image_noise_pred_text = decode_latents(vae, noise_pred_text[1].half())
                     # saveNumpyArrayToImage(image_noise_pred_text, "noise_pred_text_1")
@@ -836,7 +870,7 @@ def main():
                     # saveNumpyArrayToImage(image_model_pred, "model_pred_1")
 
                 if args.snr_gamma is None:
-                    loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
+                    loss = F.mse_loss(latents.float(), target.float(), reduction="mean")
                     print("771 loss", loss)
                 else:
                     # Compute loss-weights as per Section 3.4 of https://arxiv.org/abs/2303.09556.
@@ -851,7 +885,7 @@ def main():
                     elif noise_scheduler.config.prediction_type == "v_prediction":
                         mse_loss_weights = mse_loss_weights / (snr + 1)
 
-                    loss = F.mse_loss(model_pred.float(), target.float(), reduction="none")
+                    loss = F.mse_loss(latents.float(), target.float(), reduction="none")
                     loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
                     loss = loss.mean()
                     print("789 loss", loss)
