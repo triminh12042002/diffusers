@@ -711,8 +711,8 @@ def main():
                 # Sample a random timestep for each image
                 # timesteps = torch.randint(0, noise_scheduler.config.num_train_timesteps, (bsz,), device=latents.device)
                 # rand i time step from 0 to 1000
-                timesteps = torch.randint(0, noise_scheduler.config.num_train_timesteps, (1,) , device=latents.device)
-                # timesteps = torch.randint(0, 50, (1,) , device=latents.device)
+                # timesteps = torch.randint(0, noise_scheduler.config.num_train_timesteps, (1,) , device=latents.device)
+                timesteps = torch.randint(0, 50, (1,) , device=latents.device)
                 print("691 timesteps / config:", timesteps, "/", noise_scheduler.config.num_train_timesteps)
                 # timesteps = timesteps.long()
 
@@ -723,7 +723,7 @@ def main():
                 else:
                     noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
                 
-                # target_noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps-1)
+                target_noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps-10)
 
                 latents = noisy_latents
 
@@ -812,8 +812,14 @@ def main():
                 # print out input and outptu to verify data
                 if count_data == 1:
                     image_target = decode_latents(vae, target)
-                    saveNumpyArrayToImage(image_target[0], "target 0")
-                    saveNumpyArrayToImage(image_target[1], "target 1")
+                    saveNumpyArrayToImage(image_target[0], "target_0")
+                    saveNumpyArrayToImage(image_target[1], "target_1")
+
+                    image_target = decode_latents(vae, target_noisy_latents)
+                    saveNumpyArrayToImage(image_target[0], "target_noisy_latents_0")
+                    saveNumpyArrayToImage(image_target[1], "target_noisy_latents_1")
+
+                    target_noisy_latents
 
                     # saveTensorToImage(mask, "mask")
                     # saveTensorToImage(local_sketch.to(mask.dtype), "local_sketch.to(mask.dtype)")
@@ -840,6 +846,8 @@ def main():
                 # compute the previous noisy sample x_t -> x_t-1
                 latents = noise_scheduler.step(noise_pred, timesteps, latents, **extra_step_kwargs).prev_sample.to(
                     vae.dtype)
+                
+                target = target_noisy_latents
 
                 # print out input and outptu to verify data
                 if count_data == 1:
